@@ -1,5 +1,6 @@
 package com.example.paymentservice.paymentGateaways;
 
+import com.example.paymentservice.DTO.PaymentResponseDto;
 import com.razorpay.PaymentLink;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
@@ -14,41 +15,51 @@ public class RazorPayPaymentGateway implements paymentGateway {
     public RazorPayPaymentGateway(RazorpayClient razorpayClient) {
         this.razorpayClient = razorpayClient;
     }
-    public String generatePaymentLink(Long orderId, Long amount) throws RazorpayException {
+    @Override
+    public PaymentResponseDto generatePaymentLink(Long orderId, Long amount, String userName, String userEmail) throws RazorpayException {
         try {
-//            Order Details
             JSONObject paymentLinkRequest = new JSONObject();
-            paymentLinkRequest.put("amount",amount);
-            paymentLinkRequest.put("currency","INR");
-//        paymentLinkRequest.put("accept_partial",true);
-//        paymentLinkRequest.put("first_min_partial_amount",100);
-            paymentLinkRequest.put("expire_by",1732293753);
-            paymentLinkRequest.put("reference_id",orderId.toString());
-            paymentLinkRequest.put("description","Payment for policy no 00001");
+            paymentLinkRequest.put("amount", amount * 100); // in paise
+            paymentLinkRequest.put("currency", "INR");
+            long expiresBy = System.currentTimeMillis() / 1000 + 16 * 60;
+            paymentLinkRequest.put("expire_by", expiresBy);
 
-//        Customer Details:::
+            // ✅ Setting reference_id
+            paymentLinkRequest.put("reference_id", orderId.toString());
+
+            // ✅ Also add reference_id inside notes
+            JSONObject notes = new JSONObject();
+            notes.put("reference_id", orderId.toString());
+            paymentLinkRequest.put("notes", notes);
+
+            paymentLinkRequest.put("description", "Payment for order " + orderId);
+
             JSONObject customer = new JSONObject();
-            customer.put("name","Ridhim");
-            customer.put("contact","+916239818765");
-            customer.put("email","ridhimraizada.rr@gmail.com");
-            paymentLinkRequest.put("customer",customer);
+            customer.put("name", userName);
+            customer.put("email", userEmail);
+            paymentLinkRequest.put("customer", customer);
 
-//        Notification Details::::
             JSONObject notify = new JSONObject();
-//        notify.put("sms",true);
-//        notify.put("email",true);
-            paymentLinkRequest.put("notify",notify);
-//        paymentLinkRequest.put("reminder_enable",true);
-//        JSONObject notes = new JSONObject();
-//        notes.put("policy_name","Jeevan Bima");
-//        paymentLinkRequest.put("notes",notes);
-            paymentLinkRequest.put("callback_url","https://paymentservice.free.beeceptor.com");
-            paymentLinkRequest.put("callback_method","get");
+            notify.put("email", true);
+            paymentLinkRequest.put("notify", notify);
+
+            paymentLinkRequest.put("callback_url", "https://b875-223-178-210-249.ngrok-free.app/payments/callback");
+            paymentLinkRequest.put("callback_method", "get");
 
             PaymentLink payment = razorpayClient.paymentLink.create(paymentLinkRequest);
-            return  payment.toString();
-        }catch (Exception e){
+            JSONObject responseJson = new JSONObject(payment.toString());
+
+            PaymentResponseDto responseDto = new PaymentResponseDto();
+            responseDto.setPaymentLink(responseJson.getString("short_url"));
+            responseDto.setAmount(responseJson.getLong("amount"));
+            responseDto.setCurrency(responseJson.getString("currency"));
+            responseDto.setStatus(responseJson.getString("status"));
+
+            return responseDto;
+
+        } catch (Exception e) {
             throw new RazorpayException(e.getMessage());
         }
     }
+
 }

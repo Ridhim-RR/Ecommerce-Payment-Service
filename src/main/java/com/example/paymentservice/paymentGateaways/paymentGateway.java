@@ -1,7 +1,8 @@
 package com.example.paymentservice.paymentGateaways;
 
+import com.example.paymentservice.DTO.PaymentResponseDto;
 import com.razorpay.RazorpayException;
 
 public interface paymentGateway {
-    String generatePaymentLink(Long orderId, Long amount) throws RazorpayException;
+    PaymentResponseDto generatePaymentLink(Long orderId, Long amount, String  userName, String userEmail) throws RazorpayException;
 }
